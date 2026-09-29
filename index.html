@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Запуск аккаунтов PAYWALK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one narrow reading column on the site's night-navy ground; glass panels only for things you act on (steps, copy blocks, day plan). */
+:root{
+  --bg:#041124;
+  --bg-2:#071a36;
+  --panel:rgba(5,16,35,.9);
+  --panel-2:rgba(167,213,255,.04);
+  --line:rgba(50,83,124,.72);
+  --line-soft:rgba(172,214,255,.08);
+  --fg:#eaf3ff;
+  --muted:#9bb3d1;
+  --dim:#6f88a8;
+  --sky:#0b9cff;
+  --sky-soft:#72beff;
+  --indigo:#0739e6;
+  --ok:#3ecf8e;
+  --warn:#ffb547;
+  --bad:#ff6b6b;
+  --grad:linear-gradient(100deg,var(--sky) 0%,var(--indigo) 100%);
+  --font:"Manrope","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+body{margin:0;
+  background:var(--bg);
+  background-image:radial-gradient(900px 480px at 85% -120px,rgba(15,67,255,.32),transparent 70%),radial-gradient(700px 420px at -10% 10%,rgba(11,156,255,.12),transparent 70%);
+  background-repeat:no-repeat;
+  color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.6;
+  padding-inline:16px;padding-block:0 64px;
+}
+.wrap{max-width:860px;margin:0 auto}
+a{color:var(--sky-soft)}
+:focus-visible{outline:2px solid var(--sky-soft);outline-offset:2px;border-radius:6px}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:22px}
+.logo{font-weight:800;letter-spacing:.14em;font-size:15px}
+.logo span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 12px;background:var(--panel-2)}
+
+/* hero */
+.hero{padding-block:28px 34px}
+.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--sky-soft);font-weight:700}
+h1{font-size:clamp(30px,6vw,48px);line-height:1.08;font-weight:800;margin:12px 0 16px;text-wrap:balance;letter-spacing:-.02em}
+h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{color:var(--muted);max-width:62ch;margin:0;font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.fact{border:1px solid var(--line);background:var(--panel-2);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--muted)}
+.fact b{color:var(--fg);font-weight:700}
+
+/* nav */
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:rgba(4,17,36,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft);margin-inline:-16px;padding:10px 16px}
+.toc-in{max-width:860px;margin:0 auto;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.toc-in::-webkit-scrollbar{display:none}
+.toc a{white-space:nowrap;text-decoration:none;color:var(--muted);font-size:14px;font-weight:600;padding:7px 13px;border-radius:999px;border:1px solid var(--line-soft)}
+.toc a:hover{color:var(--fg);border-color:var(--line)}
+
+/* sections */
+section{padding-block:44px 8px;scroll-margin-top:60px}
+h2{font-size:clamp(24px,4.4vw,32px);line-height:1.15;font-weight:800;margin:0 0 10px;letter-spacing:-.015em;text-wrap:balance}
+h3{font-size:19px;font-weight:700;margin:0 0 8px;text-wrap:balance}
+.sub{color:var(--muted);margin:0 0 22px;max-width:64ch}
+p{margin:0}
+.stack{display:flex;flex-direction:column;gap:14px}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;min-width:0}
+.plat-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.plat-badge{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:5px 11px;border-radius:8px;background:var(--grad);color:#fff}
+.plat-head .note{color:var(--dim);font-size:14px}
+
+/* checklist */
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:28px 1fr;gap:12px;padding:12px 4px;border-top:1px solid var(--line-soft)}
+ol.steps li:first-child{border-top:0}
+ol.steps input{appearance:none;-webkit-appearance:none;width:22px;height:22px;margin:2px 0 0;border-radius:7px;border:1.5px solid var(--line);background:var(--panel-2);cursor:pointer;display:grid;place-items:center}
+ol.steps input:checked{background:var(--grad);border-color:transparent}
+ol.steps input:checked::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+ol.steps label{cursor:pointer;min-width:0}
+ol.steps label b{display:block;font-weight:700}
+ol.steps label span{display:block;color:var(--muted);font-size:15px}
+ol.steps li.done label{opacity:.55}
+.path{font-family:var(--mono);font-size:13px;color:var(--sky-soft);background:rgba(114,190,255,.08);padding:1px 6px;border-radius:5px;overflow-wrap:anywhere}
+.progress{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+.bar{flex:1;height:4px;background:var(--line-soft);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--grad);transition:width .3s}
+
+/* copy blocks */
+.copy{position:relative;background:var(--bg-2);border:1px solid var(--line-soft);border-radius:12px;padding:14px 14px 14px 16px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
+.copy .lbl{grid-column:1/-1;display:flex;justify-content:space-between;gap:10px;font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);font-weight:700}
+.copy pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--font);font-size:15px;line-height:1.55;color:var(--fg);min-width:0}
+.copy pre.mono{font-family:var(--mono);font-size:13px;color:var(--sky-soft)}
+.btn{font:inherit;font-size:13px;font-weight:700;color:#fff;background:var(--grad);border:0;border-radius:9px;padding:7px 12px;cursor:pointer;box-shadow:0 0 12px rgba(15,67,255,.32);white-space:nowrap}
+.btn.ok{background:var(--ok);box-shadow:none;color:#04210f}
+.limit{font-variant-numeric:tabular-nums}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+
+/* warm-up timeline */
+.days{display:flex;flex-direction:column;gap:14px}
+.day{display:grid;grid-template-columns:110px 1fr;gap:18px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px}
+.day-n{font-weight:800;font-size:15px;color:var(--sky-soft);line-height:1.3}
+.day-n small{display:block;color:var(--dim);font-weight:600;font-size:13px;margin-top:4px}
+.day ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:var(--muted)}
+.day ul li::marker{color:var(--sky)}
+.day ul b{color:var(--fg);font-weight:600}
+@media (max-width:560px){.day{grid-template-columns:1fr;gap:6px}}
+
+/* limits table */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);font-weight:700}
+td{color:var(--muted);font-variant-numeric:tabular-nums}
+td:first-child{color:var(--fg);font-weight:600}
+tr:last-child td{border-bottom:0}
+
+/* do / don't */
+.dd{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.dd .panel h3{display:flex;align-items:center;gap:10px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.dd ul{margin:6px 0 0;padding-left:18px;color:var(--muted);display:flex;flex-direction:column;gap:7px}
+.words{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.word{font-size:14px;padding:5px 11px;border-radius:999px;border:1px solid}
+.word.no{color:var(--bad);border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.06);text-decoration:line-through;text-decoration-thickness:1px}
+.word.yes{color:var(--ok);border-color:rgba(62,207,142,.35);background:rgba(62,207,142,.06)}
+
+.callout{border:1px solid rgba(255,181,71,.35);background:rgba(255,181,71,.06);border-radius:14px;padding:16px 18px;color:var(--muted)}
+.callout b{color:var(--warn)}
+
+.topics{counter-reset:t;list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.topics li{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.topics li b{font-weight:700;line-height:1.35}
+.topics li span{color:var(--dim);font-size:14px}
+
+footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--line-soft);color:var(--dim);font-size:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.reset{font:inherit;font-size:13px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:9px;padding:6px 12px;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="logo"><span>PAY</span>WALK</div>
+    <div class="tag">Внутренняя инструкция</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Instagram · TikTok · YouTube</div>
+    <h1>Новые аккаунты: <em>регистрация и прогрев</em> за 14 дней</h1>
+    <p class="lead">Пошагово: как завести аккаунты на новом телефоне, что написать в профиле и как первые две недели вести себя, чтобы соцсети не урезали охваты. Галочки сохраняются в этом браузере, можно отмечать по ходу.</p>
+    <div class="facts">
+      <div class="fact"><b>~40 минут</b> на регистрацию всех трёх</div>
+      <div class="fact"><b>14 дней</b> прогрева до полной активности</div>
+      <div class="fact"><b>3–4 недели</b> до первой рекламы</div>
+    </div>
+  </div>
+</div>
+
+<nav class="toc" aria-label="Разделы">
+  <div class="toc-in">
+    <a href="#before">Перед стартом</a>
+    <a href="#spain">Под Испанию</a>
+    <a href="#instagram">Instagram</a>
+    <a href="#tiktok">TikTok</a>
+    <a href="#youtube">YouTube</a>
+    <a href="#warmup">Прогрев</a>
+    <a href="#limits">Лимиты</a>
+    <a href="#words">Слова</a>
+    <a href="#topics">Первые ролики</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="before">
+    <h2>Перед стартом</h2>
+    <p class="sub">Эти пять пунктов решают больше, чем любые хитрости. Соцсети в первые дни смотрят на то, насколько аккаунт похож на обычного живого человека.</p>
+    <div class="panel">
+      <ol class="steps" data-group="before">
+        <li><input type="checkbox" id="b1"><label for="b1"><b>Понять, откуда вы работаете</b><span>Если вы в Испании, нужна испанская SIM-карта, которая останется у вас надолго. Если вы в другой стране, телефон настраивается без SIM-карты, по разделу «Под Испанию» ниже. Временные и виртуальные номера не берите ни в каком случае.</span></label></li>
+        <li><input type="checkbox" id="b2"><label for="b2"><b>Рабочая почта под эти аккаунты</b><span>Одна почта на все три площадки нормально. Сразу включите на ней двухфакторную защиту: если потеряете почту, потеряете и аккаунты.</span></label></li>
+        <li><input type="checkbox" id="b3"><label for="b3"><b>Стабильный интернет без прыжков по странам</b><span>Один и тот же Wi‑Fi или мобильный интернет. Никаких VPN, которые меняют страну. Если VPN нужен (вы не в Испании), он всегда включён на одном испанском сервере.</span></label></li>
+        <li><input type="checkbox" id="b4"><label for="b4"><b>Логотип и шапки заранее</b><span>Аватар 1080×1080 (логотип по центру, чтобы не обрезался кругом), обложка для YouTube 2560×1440 с важным в центральной зоне 1546×423.</span></label></li>
+        <li><input type="checkbox" id="b5"><label for="b5"><b>Доступ к контактам давать не нужно</b><span>Когда приложение спросит про контакты, жмите «Не разрешать». Регистрации это не мешает.</span></label></li>
+      </ol>
+      <div class="progress"><div class="bar"><i></i></div><span class="count">0 / 5</span></div>
+    </div>
+  </section>
+
+  <section id="spain">
+    <h2>Настройка телефона под Испанию</h2>
+    <p class="sub">TikTok и Instagram показывают ролики в первую очередь людям рядом с вами. Чтобы видео видели русскоязычные в Валенсии и Мадриде, а не в Москве, соцсеть должна видеть телефон в Испании. Настраивайте до первого входа в аккаунты: первый вход с неправильными настройками портит доверие к устройству.</p>
+    <div class="stack">
+      <div class="grid2">
+        <div class="panel"><h3>Вы в Испании</h3><p style="color:var(--muted)">Испанская SIM-карта, обычный интернет, без VPN. Геолокацию и контакты для TikTok и Instagram всё равно закройте. Остальное из этого раздела не нужно, переходите к регистрации.</p></div>
+        <div class="panel"><h3>Вы в другой стране</h3><p style="color:var(--muted)">Сделайте все шаги ниже. Главное правило: в телефоне нет SIM-карты. Российский или любой другой номер перебивает VPN, и ролики уйдут аудитории той страны.</p></div>
+      </div>
+      <div class="panel">
+        <div class="plat-head"><span class="plat-badge">Телефон</span><span class="note">если вы не в Испании, 20 минут</span></div>
+        <ol class="steps" data-group="es">
+          <li><input type="checkbox" id="e1"><label for="e1"><b>Вытащить SIM-карту и выключить eSIM</b><span>Телефон всегда без SIM, а не только когда публикуете. Испанская SIM тоже не нужна.</span></label></li>
+          <li><input type="checkbox" id="e2"><label for="e2"><b>Режим полёта + Wi‑Fi</b><span>Некоторые телефоны ловят вышку оператора даже без SIM-карты.</span></label></li>
+          <li><input type="checkbox" id="e3"><label for="e3"><b>VPN или прокси со статичным IP Испании</b><span>Статичный значит адрес всегда один и тот же. Лучше город из ЦА: Мадрид, Валенсия или Барселона. Включён круглосуточно, сервер не менять.</span></label></li>
+          <li><input type="checkbox" id="e4"><label for="e4"><b>Проверить IP на 2ip.io</b><span>Должна стоять Испания.</span></label></li>
+          <li><input type="checkbox" id="e5"><label for="e5"><b>Регион телефона: Испания</b><span>iPhone: <span class="path">Настройки → Основные → Язык и регион</span>. Язык телефона оставьте русским: ваша ЦА тоже русскоязычная, и профиль выглядит как обычный русскоязычный житель Испании.</span></label></li>
+          <li><input type="checkbox" id="e6"><label for="e6"><b>Часовой пояс: Мадрид</b><span>Выключите автоматическое время и выберите Мадрид. Вся материковая Испания живёт в одном поясе. iPhone: <span class="path">Настройки → Основные → Дата и время</span>.</span></label></li>
+          <li><input type="checkbox" id="e7"><label for="e7"><b>Закрыть геолокацию и контакты</b><span>Геолокация для TikTok и Instagram: «Никогда». Доступ к контактам не давать.</span></label></li>
+          <li><input type="checkbox" id="e8"><label for="e8"><b>Перезагрузить телефон</b><span>Только после этого ставить приложения и регистрироваться. Регистрация по почте: номера в телефоне нет.</span></label></li>
+        </ol>
+        <div class="progress"><div class="bar"><i></i></div><span class="count">0 / 8</span></div>
+      </div>
+      <div class="callout"><b>Что соцсеть проверяет в первую очередь.</b> Признаки идут по старшинству, верхний перебивает все нижние: геолокация → SIM-карта → IP-адрес → язык → регион и часовой пояс. Поэтому VPN не поможет, если в телефоне осталась SIM-карта.</div>
+      <div class="grid2">
+        <div class="panel"><h3>Проверка: вы в Испании?</h3><p style="color:var(--muted)">TikTok → «+» → запишите любое видео → дойдите до последнего экрана перед публикацией → поле «Место». Должны быть испанские города. Если там российские, проверьте SIM, геолокацию и 2ip.io. Ошибка не оставляет следа: исправили, и ролики уходят нужной аудитории.</p></div>
+        <div class="panel"><h3>Не звать знакомых</h3><p style="color:var(--muted)">Первые недели не отправляйте ссылку на новые аккаунты друзьям и коллегам из России и СНГ. Их просмотры и подписки сбивают алгоритм, и он начинает показывать ролики туда.</p></div>
+      </div>
+      <div class="panel">
+        <h3>Что из подобных инструкций не берём</h3>
+        <ul style="margin:6px 0 0;padding-left:18px;color:var(--muted);display:flex;flex-direction:column;gap:7px">
+          <li><b style="color:var(--fg);font-weight:600">Покупку готовых аккаунтов.</b> Это запрещено правилами площадок, а финансовому бренду нельзя рисковать тем, что аккаунт заберёт продавец.</li>
+          <li><b style="color:var(--fg);font-weight:600">Антидетект-браузеры.</b> Нужны для десятков аккаунтов. Для одного бизнеса хватит приложения и обычного браузера.</li>
+          <li><b style="color:var(--fg);font-weight:600">Английский язык в телефоне.</b> Наша аудитория русскоязычная, язык телефона пусть совпадает с ней.</li>
+          <li><b style="color:var(--fg);font-weight:600">VPN для рекламы.</b> В рекламном кабинете Meta и TikTok страну и города показа выбирают в настройках объявления. Там VPN не нужен.</li>
+          <li><b style="color:var(--fg);font-weight:600">Выдуманный адрес.</b> Не пишите в профиле «офис в Валенсии», если его нет. Meta может попросить документы бизнеса, и адрес должен совпасть.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="instagram">
+    <h2>Instagram</h2>
+    <p class="sub">Главная площадка для Reels. Регистрируемся сразу как бизнес, но с Facebook пока не связываем: пусть аккаунт сначала поживёт сам.</p>
+    <div class="stack">
+      <div class="panel">
+        <div class="plat-head"><span class="plat-badge">Instagram</span><span class="note">регистрация, 10–15 минут</span></div>
+        <ol class="steps" data-group="ig">
+          <li><input type="checkbox" id="i1"><label for="i1"><b>Регистрация по почте или номеру</b><span>Не через «Войти с Facebook». Дата рождения ваша настоящая, возраст 18+.</span></label></li>
+          <li><input type="checkbox" id="i2"><label for="i2"><b>Имя пользователя и имя в профиле</b><span>Варианты ника ниже. В поле «Имя» пишите с ключевым словом: Instagram ищет и по нему.</span></label></li>
+          <li><input type="checkbox" id="i3"><label for="i3"><b>Аватар и описание</b><span>Ссылку в профиль пока не ставьте, добавите на 4–5 день.</span></label></li>
+          <li><input type="checkbox" id="i4"><label for="i4"><b>Переключить на бизнес-аккаунт</b><span><span class="path">Настройки → Тип аккаунта и инструменты → Переключиться на профессиональный аккаунт → Бизнес</span>. Категория: «Финансовые услуги». Показ категории в профиле можно выключить.</span></label></li>
+          <li><input type="checkbox" id="i5"><label for="i5"><b>Двухфакторная защита</b><span><span class="path">Центр аккаунтов → Пароль и безопасность → Двухфакторная аутентификация</span>. Лучше через приложение-аутентификатор, а не SMS.</span></label></li>
+          <li><input type="checkbox" id="i6"><label for="i6"><b>Проверить статус аккаунта</b><span><span class="path">Настройки → Статус аккаунта</span>. Там видно, может ли Instagram рекомендовать ваши Reels новым людям. Заглядывайте туда раз в неделю.</span></label></li>
+        </ol>
+        <div class="progress"><div class="bar"><i></i></div><span class="count">0 / 6</span></div>
+      </div>
+
+      <div class="grid2">
+        <div class="copy"><div class="lbl"><span>Имя в профиле</span></div><pre>PAYWALK | Международные платежи</pre><button class="btn" type="button">Копировать</button></div>
+        <div class="copy"><div class="lbl"><span>Варианты ника</span></div><pre>paywalk.es
+paywalk_spain
+paywalk.team</pre><button class="btn" type="button">Копировать</button></div>
+      </div>
+      <div class="copy"><div class="lbl"><span>Описание профиля</span><span class="limit" data-limit="150"></span></div><pre>Международные платежи и переводы
+🇪🇸 Испания · Европа · СНГ
+Бизнесу и тем, кто переехал
+Платёж за 1–2 дня, менеджер 24/7 ↓</pre><button class="btn" type="button">Копировать</button></div>
+      <div class="copy"><div class="lbl"><span>Ссылка в профиль (с 4–5 дня)</span></div><pre class="mono">https://paywalk.net/?utm_source=instagram&amp;utm_medium=social&amp;utm_content=link_in_bio</pre><button class="btn" type="button">Копировать</button></div>
+    </div>
+  </section>
+
+  <section id="tiktok">
+    <h2>TikTok</h2>
+    <p class="sub">TikTok жёстче всех относится к новым аккаунтам с первого дня. Первые видео он показывает небольшой проверочной группе, и если аккаунт выглядит как бот, охваты застревают на нуле.</p>
+    <div class="stack">
+      <div class="panel">
+        <div class="plat-head"><span class="plat-badge">TikTok</span><span class="note">регистрация, 10 минут</span></div>
+        <ol class="steps" data-group="tt">
+          <li><input type="checkbox" id="t1"><label for="t1"><b>Регистрация по почте</b><span>Не через вход Google или Apple. Если вы не в Испании, сначала полностью настройте телефон по разделу «Под Испанию» и только потом устанавливайте TikTok.</span></label></li>
+          <li><input type="checkbox" id="t2"><label for="t2"><b>Ник и имя</b><span>Тот же ник, что в Instagram, если свободен. Людям проще найти.</span></label></li>
+          <li><input type="checkbox" id="t3"><label for="t3"><b>Аватар и короткое описание</b><span>Лимит 80 символов, текст ниже в него укладывается.</span></label></li>
+          <li><input type="checkbox" id="t4"><label for="t4"><b>Переключить на бизнес-аккаунт</b><span><span class="path">Профиль → ☰ → Настройки и конфиденциальность → Аккаунт → Переключиться на бизнес-аккаунт</span>. Категория: «Финансы» или «Услуги».</span></label></li>
+          <li><input type="checkbox" id="t5"><label for="t5"><b>Двухэтапная проверка</b><span><span class="path">Настройки и конфиденциальность → Безопасность → Двухэтапная проверка</span>.</span></label></li>
+          <li><input type="checkbox" id="t6"><label for="t6"><b>Ссылка на сайт</b><span>У бизнес-аккаунта поле «Сайт» обычно доступно сразу, у личного появляется после 1000 подписчиков. Добавляйте на 4–5 день.</span></label></li>
+        </ol>
+        <div class="progress"><div class="bar"><i></i></div><span class="count">0 / 6</span></div>
+      </div>
+      <div class="callout"><b>Про музыку.</b> У бизнес-аккаунта доступна только коммерческая библиотека звуков. Популярные треки из трендов будут недоступны или видео замьютят. Берите звуки с пометкой «Коммерческое использование» или свою озвучку.</div>
+      <div class="copy"><div class="lbl"><span>Описание профиля</span><span class="limit" data-limit="80"></span></div><pre>Платежи и переводы между странами 🇪🇸 Для бизнеса и тех, кто переехал</pre><button class="btn" type="button">Копировать</button></div>
+      <div class="copy"><div class="lbl"><span>Ссылка на сайт</span></div><pre class="mono">https://paywalk.net/?utm_source=tiktok&amp;utm_medium=social&amp;utm_content=link_in_bio</pre><button class="btn" type="button">Копировать</button></div>
+    </div>
+  </section>
+
+  <section id="youtube">
+    <h2>YouTube</h2>
+    <p class="sub">Сюда идут те же вертикальные ролики как Shorts. YouTube меньше всех наказывает новые каналы, зато Shorts дольше живут в поиске: ролик может набирать просмотры месяцами.</p>
+    <div class="stack">
+      <div class="panel">
+        <div class="plat-head"><span class="plat-badge">YouTube</span><span class="note">регистрация, 15 минут</span></div>
+        <ol class="steps" data-group="yt">
+          <li><input type="checkbox" id="y1"><label for="y1"><b>Google-аккаунт</b><span>Можно на ту же рабочую почту, если это Gmail. Если почта на другом сервисе, создайте Google-аккаунт на неё.</span></label></li>
+          <li><input type="checkbox" id="y2"><label for="y2"><b>Создать канал с названием бренда</b><span>В приложении YouTube: <span class="path">аватар → Создать канал</span>. Название: PAYWALK. Так канал будет называться брендом, а не вашим именем из Google.</span></label></li>
+          <li><input type="checkbox" id="y3"><label for="y3"><b>Псевдоним канала</b><span>Попробуйте <span class="path">@paywalk</span>, если занят, то тот же ник, что в Instagram.</span></label></li>
+          <li><input type="checkbox" id="y4"><label for="y4"><b>Подтвердить канал по телефону</b><span><span class="path">YouTube Studio → Настройки → Канал → Доступ к функциям</span>. Без этого нельзя ставить свои обложки и ссылки в описании.</span></label></li>
+          <li><input type="checkbox" id="y5"><label for="y5"><b>Оформление</b><span><span class="path">YouTube Studio → Настройка канала</span>: аватар, обложка, описание, ссылки на сайт, Instagram и Telegram. Эти ссылки кликабельны прямо в шапке канала.</span></label></li>
+          <li><input type="checkbox" id="y6"><label for="y6"><b>Язык и страна канала</b><span><span class="path">Настройки → Канал → Основная информация</span>: страна Испания, язык видео русский. Помогает поиску подбирать зрителей.</span></label></li>
+        </ol>
+        <div class="progress"><div class="bar"><i></i></div><span class="count">0 / 6</span></div>
+      </div>
+      <div class="copy"><div class="lbl"><span>Описание канала</span></div><pre>PAYWALK — международные платежи и переводы.
+
+Рассказываем простым языком, как оплатить поставщика за рубежом, перевести деньги между странами и не застрять с платежом на недели.
+
+Для предпринимателей и тех, кто переехал в Испанию или другую страну Европы.
+
+• Платёж за 1–2 дня
+• Работаем официально, проверяем контрагентов
+• Документы на каждом этапе
+• Личный менеджер 24/7
+
+Задать вопрос: Telegram @PayWalk</pre><button class="btn" type="button">Копировать</button></div>
+      <div class="copy"><div class="lbl"><span>Ссылка в шапку канала</span></div><pre class="mono">https://paywalk.net/?utm_source=youtube&amp;utm_medium=social&amp;utm_content=channel</pre><button class="btn" type="button">Копировать</button></div>
+    </div>
+  </section>
+
+  <section id="warmup">
+    <h2>Прогрев: план на 14 дней</h2>
+    <p class="sub">Одинаковый для всех трёх площадок. Задача: чтобы алгоритм понял тему аккаунта и то, что за ним живой человек. Тогда первые ролики он покажет нужным людям.</p>
+    <div class="days">
+      <div class="day">
+        <div class="day-n">День 1<small>регистрация</small></div>
+        <div>
+          <h3>Завести и не торопиться</h3>
+          <ul>
+            <li>Регистрация, аватар, имя, описание <b>без ссылки</b>.</li>
+            <li><b>15–20 минут</b> листать ленту. Искать по словам: «переезд в Испанию», «жизнь в Валенсии», «ВНЖ Испания», «бизнес за границей», «платежи поставщикам».</li>
+            <li>Досматривать ролики по теме до конца, листать мимо всё остальное.</li>
+            <li>5–10 лайков. Никаких подписок и комментариев в первый день.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="day">
+        <div class="day-n">Дни 2–3<small>активность</small></div>
+        <div>
+          <h3>Вести себя как обычный зритель</h3>
+          <ul>
+            <li>Заходить <b>2–3 раза в день</b> по 15–20 минут, а не один раз на час.</li>
+            <li>10–20 лайков, сохранения и репосты себе в избранное. На ролики не по теме жмите «Не интересно»: так лента быстрее настраивается на вашу нишу.</li>
+            <li>Подписаться на <b>5–10</b> аккаунтов по теме: блогеры про Испанию, релокацию, бизнес.</li>
+            <li>3–5 нормальных комментариев по делу, из нескольких слов. Без ссылок и без упоминания PAYWALK.</li>
+            <li>Instagram: 1–2 сторис (офис, город, рабочий момент).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="day">
+        <div class="day-n">Дни 4–5<small>первый контент</small></div>
+        <div>
+          <h3>Первый ролик и ссылка</h3>
+          <ul>
+            <li>Выложить <b>первый ролик</b> на каждую площадку. Для Instagram лучше сразу 2–3 публикации, чтобы профиль не был пустым.</li>
+            <li>TikTok: первое видео снимите <b>камерой TikTok</b>, 5–15 секунд, со звуком из его библиотеки. Готовые ролики первые 10–30 раз загружайте через редактор: снимите кусок камерой, нажмите «+» и добавьте своё видео из галереи, снятый кусок удалите, добавьте текст в редакторе TikTok.</li>
+            <li>Instagram: первые Reels собирайте во встроенном редакторе, с музыкой из его библиотеки.</li>
+            <li>Добавить ссылку на сайт в профиль.</li>
+            <li>Первый час после публикации быть в приложении: отвечать на комментарии, не удалять и не перезаливать ролик.</li>
+            <li>Листать ленту продолжаем в том же режиме.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="day">
+        <div class="day-n">Дни 6–14<small>ритм</small></div>
+        <div>
+          <h3>Регулярность важнее количества</h3>
+          <ul>
+            <li><b>1 ролик в день</b> или через день, в одно и то же время.</li>
+            <li>Отвечать на все комментарии и сообщения в течение дня.</li>
+            <li>Подписки до 20–30 в день, лайки до 50–100. Активность можно постепенно поднимать.</li>
+            <li>Раз в неделю смотреть статус аккаунта в Instagram и статистику первых трёх секунд.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="day">
+        <div class="day-n">После 14 дня<small>расширение</small></div>
+        <div>
+          <h3>Связки и реклама</h3>
+          <ul>
+            <li>Связать Instagram со страницей Facebook через Центр аккаунтов.</li>
+            <li>Запускать рекламу не раньше <b>3–4 недель</b> и 10+ публикаций. Финансовые объявления Meta проверяет строже обычных.</li>
+            <li>Коллаборации с блогерами про Испанию: сейчас самое время.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="limits">
+    <h2>Лимиты на первую неделю</h2>
+    <p class="sub">Цифры ориентировочные, точные лимиты площадки не публикуют. Если что-то начинает блокироваться, остановитесь на сутки.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Действие</th><th>Дни 1–3</th><th>Дни 4–7</th><th>Дни 8–14</th></tr></thead>
+        <tbody>
+          <tr><td>Подписки в день</td><td>0–10</td><td>до 20</td><td>до 30</td></tr>
+          <tr><td>Лайки в день</td><td>до 20</td><td>до 50</td><td>до 100</td></tr>
+          <tr><td>Комментарии в день</td><td>до 5</td><td>до 10</td><td>до 20</td></tr>
+          <tr><td>Сообщения незнакомым</td><td>0</td><td>0</td><td>только в ответ</td></tr>
+          <tr><td>Ролики</td><td>0</td><td>1–3</td><td>1 в день</td></tr>
+          <tr><td>Ссылка в профиле</td><td>нет</td><td>с 4–5 дня</td><td>да</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="words">
+    <h2>Что можно и что нельзя</h2>
+    <p class="sub">Финансовая тема у всех трёх площадок под особым контролем. Модерация ловит отдельные слова в описании, подписях, субтитрах и даже в речи на видео.</p>
+    <div class="dd">
+      <div class="panel">
+        <h3><i class="dot" style="background:var(--bad)"></i>Не делать</h3>
+        <ul>
+          <li>Выкладывать видео с водяным знаком TikTok в Instagram и YouTube. Сохраняйте чистый файл из монтажки.</li>
+          <li>Удалять и перезаливать ролик, если он плохо зашёл в первый час.</li>
+          <li>Часто выходить и заходить в аккаунты, переключаться между пятью профилями подряд.</li>
+          <li>Покупать подписчиков и лайки, даже «для старта».</li>
+          <li>Писать в директ незнакомым людям с предложением услуг.</li>
+        </ul>
+        <div class="words">
+          <span class="word no">обход санкций</span>
+          <span class="word no">без проверок</span>
+          <span class="word no">анонимно</span>
+          <span class="word no">обнал</span>
+          <span class="word no">без блокировок</span>
+          <span class="word no">гарантированно</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h3><i class="dot" style="background:var(--ok)"></i>Делать</h3>
+        <ul>
+          <li>Один и тот же ролик можно выложить на все три площадки. Поменяйте обложку и подпись под каждую.</li>
+          <li>Субтитры в каждом ролике: большинство смотрит без звука.</li>
+          <li>Первые 2 секунды: сразу вопрос или ситуация зрителя, без приветствий.</li>
+          <li>Отвечать на комментарии видео-ответом, это готовый следующий ролик.</li>
+          <li>Говорить про документы, сроки и проверку контрагентов. Это вызывает доверие и не триггерит модерацию.</li>
+        </ul>
+        <div class="words">
+          <span class="word yes">официально</span>
+          <span class="word yes">с документами</span>
+          <span class="word yes">за 1–2 дня</span>
+          <span class="word yes">проверяем контрагентов</span>
+          <span class="word yes">личный менеджер</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="topics">
+    <h2>Темы для первых роликов</h2>
+    <p class="sub">На старте лучше всего заходят ответы на частые вопросы. Шесть тем на первые две недели, под ЦА в Испании.</p>
+    <ol class="topics">
+      <li><b>Переехали в Испанию: 3 ошибки с переводами в первые месяцы</b><span>Боль: деньги застряли, банк задаёт вопросы</span></li>
+      <li><b>Почему испанский банк может задержать входящий перевод</b><span>Страх: заблокируют счёт</span></li>
+      <li><b>Сколько на самом деле идёт международный платёж и от чего это зависит</b><span>Желание: предсказуемость</span></li>
+      <li><b>Какие документы подготовить перед оплатой инвойса поставщику</b><span>Для предпринимателей</span></li>
+      <li><b>Как проверить контрагента перед первой оплатой</b><span>Страх: отправить деньги и не получить товар</span></li>
+      <li><b>Вопрос из директа: разбор реальной ситуации клиента</b><span>Без имён и сумм, формат «нам написали…»</span></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Если что-то пошло не так</h2>
+    <p class="sub">Первые ролики иногда набирают 0–200 просмотров. Это не всегда бан.</p>
+    <div class="grid2">
+      <div class="panel"><h3>Мало просмотров</h3><p style="color:var(--muted)">Проверьте статус аккаунта в Instagram. Если там всё зелёное, дело в ролике: слабые первые секунды или тема. Выложите ещё 3–5 роликов, прежде чем делать выводы.</p></div>
+      <div class="panel"><h3>Просят подтвердить личность</h3><p style="color:var(--muted)">Проходите сразу, не откладывайте. Используйте тот же номер и почту, что при регистрации. После этого сутки никаких массовых действий.</p></div>
+      <div class="panel"><h3>Действие заблокировано</h3><p style="color:var(--muted)">Instagram временно ограничил лайки или подписки. Остановитесь на 24–48 часов, ничего не нажимайте повторно, потом возвращайтесь с меньшими объёмами.</p></div>
+      <div class="panel"><h3>0 просмотров в TikTok</h3><p style="color:var(--muted)">Сутки не публикуйте, только листайте ленту. Потом ролик, снятый камерой TikTok. Если снова 0, ещё сутки паузы. Параллельно проверьте поле «Место» (раздел «Под Испанию»).</p></div>
+      <div class="panel"><h3>Ролик удалили модераторы</h3><p style="color:var(--muted)">Подайте апелляцию прямо из уведомления. Проверьте подпись и субтитры на слова из красного списка выше.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>PAYWALK · paywalk.net · Telegram @PayWalk</span>
+    <button class="reset" type="button" id="reset">Сбросить галочки</button>
+  </footer>
+</main>
+
+<script>
+(function(){
+  var KEY='paywalk-accounts-v1', state={};
+  try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){state={}}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+  function refresh(list){
+    var boxes=list.querySelectorAll('input[type=checkbox]'),n=0;
+    boxes.forEach(function(b){b.closest('li').classList.toggle('done',b.checked);if(b.checked)n++});
+    var p=list.parentElement.querySelector('.progress');
+    if(p){p.querySelector('i').style.width=(n/boxes.length*100)+'%';p.querySelector('.count').textContent=n+' / '+boxes.length}
+  }
+  document.querySelectorAll('ol.steps').forEach(function(list){
+    list.querySelectorAll('input[type=checkbox]').forEach(function(b){
+      b.checked=!!state[b.id];
+      b.addEventListener('change',function(){state[b.id]=b.checked;save();refresh(list)});
+    });
+    refresh(list);
+  });
+  document.getElementById('reset').addEventListener('click',function(){
+    state={};save();
+    document.querySelectorAll('ol.steps input').forEach(function(b){b.checked=false});
+    document.querySelectorAll('ol.steps').forEach(refresh);
+  });
+  document.querySelectorAll('.limit').forEach(function(el){
+    var pre=el.closest('.copy').querySelector('pre');
+    var len=Array.from(pre.textContent).length;
+    el.textContent=len+' / '+el.dataset.limit;
+    el.style.color=len>+el.dataset.limit?'var(--bad)':'var(--ok)';
+  });
+  document.querySelectorAll('.copy .btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var pre=btn.closest('.copy').querySelector('pre'),txt=pre.textContent;
+      function ok(){btn.textContent='Скопировано';btn.classList.add('ok');setTimeout(function(){btn.textContent='Копировать';btn.classList.remove('ok')},1600)}
+      function fallback(){var r=document.createRange();r.selectNodeContents(pre);var s=getSelection();s.removeAllRanges();s.addRange(r);btn.textContent='Выделено, нажмите копировать'}
+      try{navigator.clipboard.writeText(txt).then(ok,fallback)}catch(e){fallback()}
+    });
+  });
+})();
+</script>
+</body>
+</html>
