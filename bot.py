@@ -41,16 +41,19 @@ TEXTS = {
         "🔥 свежие обновления каждый месяц\n"
         "🔥 разборы, практика и обратная связь\n"
         "🔥 чат с теми, кто делает то же самое\n\n"
-        "Доступ: {price} ₽ в месяц. Отменить можно в любой момент прямо здесь, в боте."
+        "Выбери тариф. Отменить продление можно в любой момент прямо здесь, в боте."
     ),
-    "old_member": "\n\nТы из нашей первой группы, поэтому для тебя цена {price} ₽ вместо {full} ₽, пока подписка активна 🤝",
-    "btn_join": "Вступить за {price} ₽/мес",
+    "year_bonus": "\n\n🎁 С годовым тарифом — личный разбор: созвон 2 часа, его запись и инструкция на 20 страниц, что делать именно тебе.",
+    "plan_1": "1 месяц — {price} ₽",
+    "plan_3": "3 месяца — {price} ₽",
+    "plan_12": "Год — {price} ₽ + личный разбор",
+    "plan_n": "{months} мес. — {price} ₽",
     "ask_email": "Напиши почту, на неё придёт чек об оплате.",
     "bad_email": "Похоже, в почте опечатка. Напиши ещё раз, например: name@mail.ru",
     "pay": (
         "Готово, вот ссылка на оплату 👇\n\n"
         "Оплата только картой (СБП для подписки банк не поддерживает). "
-        "Дальше {price} ₽ будут списываться раз в месяц, за день до списания я напомню.\n\n"
+        "Дальше {price} ₽ будут списываться раз в {period}, за день до списания я напомню.\n\n"
         "После оплаты доступ откроется сам в течение минуты."
     ),
     "btn_pay": "Оплатить картой",
@@ -70,7 +73,8 @@ TEXTS = {
     "btn_yes_cancel": "Да, отменить",
     "btn_no": "Нет, остаюсь",
     "cancelled": "Подписка отменена. Доступ останется до {until}. Захочешь вернуться, просто нажми /start.",
-    "remind": "Напоминаю: завтра спишется {price} ₽ за следующий месяц в клубе. Отменить можно командой /start.",
+    "remind": "Напоминаю: завтра спишется {price} ₽ за следующий период в клубе ({period}). Отменить можно командой /start.",
+    "year_welcome": "Ты взял(а) год, значит, тебе положен личный разбор. Напиши менеджеру @{manager}, он назначит время созвона.",
     "renewed": "Оплата за следующий месяц прошла ✅ Доступ продлён до {until}.",
     "charge_failed": (
         "Не получилось списать {price} ₽ за клуб. Проверь, что на карте есть деньги, "
@@ -101,12 +105,12 @@ class Config:
         e = os.environ.get
         self.bot_token = e("BOT_TOKEN", "")
         self.club_chat_id = int(e("CLUB_CHAT_ID", "0") or 0)
-        self.old_chat_id = int(e("OLD_CHAT_ID", "0") or 0)
         self.admin_ids = {int(x) for x in e("ADMIN_IDS", "").replace(" ", "").split(",") if x}
         self.club_name = e("CLUB_NAME", "Блог без лица")
         self.manager = e("MANAGER_USERNAME", "alphach_manager")
-        self.price = float(e("PRICE", "990"))
-        self.old_price = float(e("OLD_PRICE", "0") or 0) or self.price
+        # Тарифы: месяцев:цена через запятую. Продление идёт по тому же тарифу.
+        self.plans = {int(m): float(p) for m, p in
+                      (x.split(":") for x in e("PLANS", "1:2990,3:4990,12:12990").replace(" ", "").split(",") if x)}
         self.grace_days = int(e("GRACE_DAYS", "3"))
         self.tochka_jwt = e("TOCHKA_JWT", "")
         self.tochka_client_id = e("TOCHKA_CLIENT_ID", "")
@@ -134,10 +138,15 @@ def fmt_date(iso):
     return datetime.fromisoformat(iso).astimezone(MSK).strftime("%d.%m.%Y")
 
 
-def add_month(dt):
-    """Тот же день следующего месяца (31 января → 28/29 февраля)."""
-    y, m = (dt.year + 1, 1) if dt.month == 12 else (dt.year, dt.month + 1)
+def add_months(dt, n=1):
+    """Тот же день через n месяцев (31 января + 1 → 28/29 февраля)."""
+    y, m = divmod(dt.month - 1 + n, 12)
+    y, m = dt.year + y, m + 1
     return dt.replace(year=y, month=m, day=min(dt.day, calendar.monthrange(y, m)[1]))
+
+
+def period_name(months):
+    return {1: "месяц", 3: "3 месяца", 6: "полгода", 12: "год"}.get(months, f"{months} мес.")
 
 
 # ---------------------------------------------------------------- база
@@ -165,6 +174,9 @@ class DB:
             );
             create table if not exists settings (key text primary key, value text);
         """)
+        cols = {r[1] for r in self.c.execute("pragma table_info(users)")}
+        if "months" not in cols:
+            self.c.execute("alter table users add column months integer not null default 1")
         self.c.commit()
 
     def user(self, tg_id):
@@ -237,11 +249,11 @@ class Tochka:
                 raise TochkaError(f"{method} {path}: HTTP {r.status} {text[:500]}")
             return json.loads(text) if text else {}
 
-    async def create_subscription(self, order_id, amount, email, return_url):
+    async def create_subscription(self, order_id, amount, email, return_url, period="месяц"):
         d = {
             "customerCode": self.cfg.customer_code,
             "amount": amount,
-            "purpose": f"Подписка на клуб «{self.cfg.club_name}», 1 месяц",
+            "purpose": f"Подписка на клуб «{self.cfg.club_name}», {period}",
             "recurring": True,
             "paymentLinkId": order_id,
         }
@@ -253,7 +265,7 @@ class Tochka:
         if self.cfg.receipts:
             path = "acquiring/v1.0/subscriptions_with_receipt"
             d["Client"] = {"email": email}
-            d["Items"] = [{"name": f"Доступ в клуб «{self.cfg.club_name}», 1 месяц", "amount": amount,
+            d["Items"] = [{"name": f"Доступ в клуб «{self.cfg.club_name}», {period}", "amount": amount,
                            "quantity": 1, "vatType": self.cfg.vat, "paymentMethod": "full_payment",
                            "paymentObject": "service"}]
             if self.cfg.tax_system:
@@ -322,19 +334,13 @@ class Club:
         self.cfg, self.db, self.tg, self.tochka = cfg, db, tg, tochka
         self.T = TEXTS
         self.bot_username = ""
-        self.waiting_email = set()
+        self.waiting_email = {}  # tg_id → выбранный тариф
 
     # --- вспомогательное
 
-    async def price_for(self, tg_id):
-        if self.cfg.old_chat_id and self.cfg.old_price < self.cfg.price:
-            try:
-                m = await self.tg.call("getChatMember", chat_id=self.cfg.old_chat_id, user_id=tg_id)
-                if m["status"] in ("member", "administrator", "creator", "restricted"):
-                    return self.cfg.old_price, True
-            except RuntimeError:
-                pass
-        return self.cfg.price, False
+    def plan_label(self, months):
+        key = f"plan_{months}"
+        return self.T.get(key, self.T["plan_n"]).format(months=months, price=fmt_price(self.cfg.plans[months]))
 
     async def invite_link(self):
         link = self.db.setting("invite_link")
@@ -366,8 +372,14 @@ class Club:
             return
         if uid in self.waiting_email and not text.startswith("/"):
             return await self.got_email(uid, text)
-        self.waiting_email.discard(uid)
+        self.waiting_email.pop(uid, None)
         self.db.upsert(uid, username=msg["from"].get("username"), name=msg["from"].get("first_name"))
+        # ссылка с лендинга: t.me/бот?start=m12 сразу открывает тариф
+        arg = text.split(maxsplit=1)[1] if text.startswith("/start ") else ""
+        if arg[:1] == "m" and arg[1:].isdigit() and int(arg[1:]) in self.cfg.plans:
+            u = self.db.user(uid)
+            if not (self.has_access(u) and u["status"] != "cancelled"):
+                return await self.choose_plan(uid, int(arg[1:]))
         await self.show_start(uid)
 
     async def show_start(self, uid):
@@ -388,32 +400,37 @@ class Club:
                 if u["sub_id"]:
                     buttons.append(cb_btn(self.T["btn_cancel"], "cancel"))
             return await self.tg.send(uid, text, buttons)
-        price, old = await self.price_for(uid)
-        text = self.T["start"].format(club=self.cfg.club_name, price=fmt_price(self.cfg.price))
-        if old:
-            text += self.T["old_member"].format(price=fmt_price(price), full=fmt_price(self.cfg.price))
-        await self.tg.send(uid, text, [cb_btn(self.T["btn_join"].format(price=fmt_price(price)), "join")])
+        text = self.T["start"].format(club=self.cfg.club_name)
+        if 12 in self.cfg.plans:
+            text += self.T["year_bonus"]
+        await self.tg.send(uid, text, [cb_btn(self.plan_label(m), f"join:{m}") for m in self.cfg.plans])
+
+    async def choose_plan(self, uid, months):
+        if self.cfg.receipts and not self.db.user(uid)["email"]:
+            self.waiting_email[uid] = months
+            return await self.tg.send(uid, self.T["ask_email"])
+        await self.create_payment(uid, months)
 
     async def got_email(self, uid, text):
         email = text.lower()
         if " " in email or "@" not in email or "." not in email.split("@")[-1]:
             return await self.tg.send(uid, self.T["bad_email"])
-        self.waiting_email.discard(uid)
+        months = self.waiting_email.pop(uid)
         self.db.upsert(uid, email=email)
-        await self.create_payment(uid)
+        await self.create_payment(uid, months)
 
-    async def create_payment(self, uid):
+    async def create_payment(self, uid, months):
         u = self.db.user(uid)
-        price, _ = await self.price_for(uid)
+        price = self.cfg.plans[months]
         order_id = f"club-{uid}-{uuid.uuid4().hex[:8]}"
         back = f"https://t.me/{self.bot_username}" if self.bot_username else None
         try:
-            sub_id, link = await self.tochka.create_subscription(order_id, price, u["email"], back)
+            sub_id, link = await self.tochka.create_subscription(order_id, price, u["email"], back, period_name(months))
         except (TochkaError, aiohttp.ClientError, asyncio.TimeoutError, KeyError) as e:
             log.error("подписка не создалась для %s: %s", uid, e)
             return await self.tg.send(uid, self.T["error"].format(manager=self.cfg.manager))
-        self.db.upsert(uid, status="pending", order_id=order_id, sub_id=sub_id, price=price, charging=0)
-        await self.tg.send(uid, self.T["pay"].format(price=fmt_price(price)),
+        self.db.upsert(uid, status="pending", order_id=order_id, sub_id=sub_id, price=price, months=months, charging=0)
+        await self.tg.send(uid, self.T["pay"].format(price=fmt_price(price), period=period_name(months)),
                            [url_btn(self.T["btn_pay"], link), cb_btn(self.T["btn_paid"], "paid")])
 
     async def on_callback(self, cq):
@@ -421,13 +438,13 @@ class Club:
         await self.tg.call("answerCallbackQuery", callback_query_id=cq["id"])
         self.db.upsert(uid, username=cq["from"].get("username"), name=cq["from"].get("first_name"))
         u = self.db.user(uid)
-        if data == "join":
+        if data.startswith("join"):
             if self.has_access(u) and u["status"] != "cancelled":
                 return await self.show_start(uid)
-            if self.cfg.receipts and not u["email"]:
-                self.waiting_email.add(uid)
-                return await self.tg.send(uid, self.T["ask_email"])
-            await self.create_payment(uid)
+            months = int(data.split(":")[1]) if ":" in data else 0
+            if months not in self.cfg.plans:  # старая кнопка «Вернуться»: показать тарифы
+                return await self.show_start(uid)
+            await self.choose_plan(uid, months)
         elif data == "paid":
             if u["status"] != "pending":
                 return await self.show_start(uid)
@@ -464,16 +481,20 @@ class Club:
         if cur.rowcount != 1:
             return
         u = self.db.user(uid)
-        until = add_month(now()).isoformat()
+        until = add_months(now(), u["months"]).isoformat()
         self.db.upsert(uid, paid_until=until, last_attempt=None, reminded_for=None)
         self.db.add_payment(uid, u["price"], "first", u["sub_id"])
         await self.tg.send(uid, self.T["welcome"].format(until=fmt_date(until)),
                            [url_btn(self.T["btn_enter"], await self.invite_link())])
-        await self.notify_admins(f"Новый участник: {self.who(u)}, {fmt_price(u['price'])} ₽")
+        if u["months"] >= 12:
+            await self.tg.send(uid, self.T["year_welcome"].format(manager=self.cfg.manager))
+        extra = " — назначить личный разбор!" if u["months"] >= 12 else ""
+        await self.notify_admins(f"Новый участник: {self.who(u)}, {period_name(u['months'])}, "
+                                 f"{fmt_price(u['price'])} ₽{extra}")
 
     async def renewed(self, uid):
         u = self.db.user(uid)
-        until = add_month(datetime.fromisoformat(u["paid_until"])).isoformat()
+        until = add_months(datetime.fromisoformat(u["paid_until"]), u["months"]).isoformat()
         self.db.upsert(uid, status="active", paid_until=until, last_attempt=None)
         self.db.add_payment(uid, u["price"], "renew", u["sub_id"])
         await self.tg.send(uid, self.T["renewed"].format(until=fmt_date(until)))
@@ -544,7 +565,8 @@ class Club:
                 await self.try_charge(u)
             elif until - t <= timedelta(days=1) and u["reminded_for"] != u["paid_until"]:
                 self.db.upsert(u["tg_id"], reminded_for=u["paid_until"])
-                await self.tg.send(u["tg_id"], self.T["remind"].format(price=fmt_price(u["price"])))
+                await self.tg.send(u["tg_id"], self.T["remind"].format(price=fmt_price(u["price"]),
+                                                                           period=period_name(u["months"])))
         for u in self.db.by_status("past_due"):
             until = datetime.fromisoformat(u["paid_until"])
             if until + timedelta(days=self.cfg.grace_days) <= t:
@@ -581,12 +603,13 @@ class Club:
         parts = text.split()
         cmd = parts[0].split("@")[0]
         if cmd == "/stats":
-            rows = self.db.c.execute("select status, count(*), sum(price) from users group by status").fetchall()
+            rows = self.db.c.execute("select status, count(*), sum(price * 1.0 / months) from users "
+                                     "group by status").fetchall()
             month = self.db.c.execute("select coalesce(sum(amount),0) from payments where at >= ?",
                                       ((now() - timedelta(days=30)).isoformat(),)).fetchone()[0]
             lines = [f"{r[0]}: {r[1]}" for r in rows]
             paying = sum(r[2] or 0 for r in rows if r[0] in ("active", "past_due"))
-            lines += [f"\nПлатящих в месяц: {fmt_price(paying)} ₽", f"Пришло за 30 дней: {fmt_price(month)} ₽"]
+            lines += [f"\nВыручка в пересчёте на месяц: {fmt_price(paying)} ₽", f"Пришло за 30 дней: {fmt_price(month)} ₽"]
             await self.tg.send(uid, "\n".join(lines))
         elif cmd == "/grant" and len(parts) == 3:
             target, days = int(parts[1]), int(parts[2])

@@ -53,7 +53,7 @@ class FakeTochka:
         self.created = []
         self.sub_status = "Preparing"
 
-    async def create_subscription(self, order_id, amount, email, back):
+    async def create_subscription(self, order_id, amount, email, back, period="месяц"):
         self.created.append((order_id, amount, email))
         return f"sub-{len(self.created)}", "https://pay.tochka/link"
 
@@ -83,8 +83,8 @@ class ClubTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         cfg = bot.Config.__new__(bot.Config)
-        cfg.__dict__.update(club_chat_id=CLUB, old_chat_id=-1, admin_ids={ADMIN}, club_name="Клуб",
-                            manager="m", price=990.0, old_price=690.0, grace_days=3, receipts=True)
+        cfg.__dict__.update(club_chat_id=CLUB, admin_ids={ADMIN}, club_name="Клуб", manager="m",
+                            plans={1: 2990.0, 3: 4990.0, 12: 12990.0}, grace_days=3, receipts=True)
         self.db = bot.DB(os.path.join(self.tmp.name, "t.db"))
         self.tg, self.tochka = FakeTG(), FakeTochka()
         self.club = bot.Club(cfg, self.db, self.tg, self.tochka)
@@ -97,9 +97,9 @@ class ClubTest(unittest.IsolatedAsyncioTestCase):
         u = self.db.user(uid)
         self.db.upsert(uid, paid_until=(datetime.fromisoformat(u["paid_until"]) - timedelta(**delta)).isoformat())
 
-    async def join_and_pay(self):
+    async def join_and_pay(self, months=1):
         await self.club.on_message(msg("/start"))
-        await self.club.on_callback(cq("join"))
+        await self.club.on_callback(cq(f"join:{months}"))
         await self.club.on_message(msg("Lena@Mail.ru"))
         u = self.db.user(USER)
         await self.club.on_tochka_webhook({"webhookType": "acquiringInternetPayment", "status": "APPROVED",
@@ -110,7 +110,7 @@ class ClubTest(unittest.IsolatedAsyncioTestCase):
         u = self.db.user(USER)
         self.assertEqual(u["status"], "active")
         self.assertEqual(u["email"], "lena@mail.ru")
-        self.assertEqual(self.tochka.created[0][1], 990.0)
+        self.assertEqual(self.tochka.created[0][1], 2990.0)
         self.assertTrue(any("добро пожаловать" in t for t in self.tg.sent(USER)))
 
         # заявка в группу одобряется, чужая отклоняется
@@ -132,7 +132,7 @@ class ClubTest(unittest.IsolatedAsyncioTestCase):
         await self.club.tick()
         u = self.db.user(USER)
         self.assertEqual(u["status"], "active")
-        self.assertEqual(datetime.fromisoformat(u["paid_until"]), bot.add_month(before))
+        self.assertEqual(datetime.fromisoformat(u["paid_until"]), bot.add_months(before))
         self.assertGreater(datetime.fromisoformat(u["paid_until"]), old_until)
         self.assertEqual(len(self.tochka.charges), 1)
 
@@ -163,7 +163,7 @@ class ClubTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.tochka.cancelled, ["sub-1"])
         # вернуться можно заново
         self.tochka.charge_ok = True
-        await self.club.on_callback(cq("join"))
+        await self.club.on_callback(cq("join:1"))
         self.assertEqual(self.db.user(USER)["status"], "pending")
         self.assertEqual(len(self.tochka.created), 2)
 
@@ -179,7 +179,7 @@ class ClubTest(unittest.IsolatedAsyncioTestCase):
                                            "paymentLinkId": u["order_id"], "operationId": u["sub_id"]})
         u = self.db.user(USER)
         self.assertEqual(u["status"], "active")
-        self.assertEqual(u["paid_until"], bot.add_month(datetime.fromisoformat(before)).isoformat())
+        self.assertEqual(u["paid_until"], bot.add_months(datetime.fromisoformat(before)).isoformat())
 
     async def test_cancel_keeps_access_until_end(self):
         await self.join_and_pay()
@@ -195,22 +195,40 @@ class ClubTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.db.user(USER)["status"], "expired")
         self.assertEqual(len(self.tg.did("banChatMember")), 1)
 
-    async def test_old_member_price_and_paid_button(self):
-        self.tg.old_members.add(USER)
+    async def test_year_plan_from_landing_link(self):
         await self.club.on_message(msg("/start"))
-        self.assertTrue(any("690" in t and "из нашей первой группы" in t for t in self.tg.sent(USER)))
-        await self.club.on_callback(cq("join"))
+        self.assertTrue(any("личный разбор" in t for t in self.tg.sent(USER)))
+        await self.club.on_message(msg("/start m12"))  # ссылка с лендинга сразу на год
+        self.assertTrue(any("почту" in t for t in self.tg.sent(USER)))
         await self.club.on_message(msg("не почта"))
         self.assertTrue(any("опечатка" in t for t in self.tg.sent(USER)))
         await self.club.on_message(msg("a@b.ru"))
-        self.assertEqual(self.tochka.created[0][1], 690.0)
+        self.assertEqual(self.tochka.created[0][1], 12990.0)
+        # кнопка «Я оплатил(а)»: пока не оплачено, потом активирует один раз
         await self.club.on_callback(cq("paid"))
         self.assertEqual(self.db.user(USER)["status"], "pending")
         self.tochka.sub_status = "Active"
         await self.club.on_callback(cq("paid"))
         await self.club.on_callback(cq("paid"))
-        self.assertEqual(self.db.user(USER)["status"], "active")
+        u = self.db.user(USER)
+        self.assertEqual(u["status"], "active")
         self.assertEqual(self.db.c.execute("select count(*) from payments").fetchone()[0], 1)
+        self.assertTrue(any("менеджеру" in t for t in self.tg.sent(USER)))
+        self.assertTrue(any("личный разбор" in t for t in self.tg.sent(ADMIN)))
+        # продление через год, на год, по той же цене
+        start = datetime.fromisoformat(u["paid_until"])
+        self.db.upsert(USER, paid_until=(bot.now() - timedelta(minutes=1)).isoformat())
+        before = datetime.fromisoformat(self.db.user(USER)["paid_until"])
+        await self.club.tick()
+        self.assertEqual(self.tochka.charges, [("sub-1", 12990.0)])
+        self.assertEqual(self.db.user(USER)["paid_until"], bot.add_months(before, 12).isoformat())
+        self.assertGreater(start, before)
+
+    async def test_quarter_plan(self):
+        await self.join_and_pay(months=3)
+        u = self.db.user(USER)
+        self.assertEqual(u["price"], 4990.0)
+        self.assertGreater(datetime.fromisoformat(u["paid_until"]), bot.now() + timedelta(days=88))
 
     async def test_admin_grant(self):
         await self.club.on_message(msg("/grant 333 7", uid=ADMIN))
@@ -222,10 +240,12 @@ class ClubTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.db.user(333)["status"], "expired")
         self.assertEqual(self.tochka.cancelled, [])
 
-    def test_add_month(self):
+    def test_add_months(self):
         d = datetime(2026, 1, 31, 12)
-        self.assertEqual(bot.add_month(d), datetime(2026, 2, 28, 12))
-        self.assertEqual(bot.add_month(datetime(2026, 12, 15)), datetime(2027, 1, 15))
+        self.assertEqual(bot.add_months(d), datetime(2026, 2, 28, 12))
+        self.assertEqual(bot.add_months(datetime(2026, 12, 15)), datetime(2027, 1, 15))
+        self.assertEqual(bot.add_months(datetime(2026, 11, 30), 3), datetime(2027, 2, 28))
+        self.assertEqual(bot.add_months(datetime(2026, 10, 1), 12), datetime(2027, 10, 1))
 
 
 class WebhookSignatureTest(unittest.IsolatedAsyncioTestCase):
