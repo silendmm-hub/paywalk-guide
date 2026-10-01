@@ -1,0 +1,27 @@
+services:
+  bot:
+    build: .
+    restart: always
+    env_file: .env
+    environment:
+      DB_PATH: /app/data/club.db
+    volumes:
+      - ./data:/app/data
+
+  # Даёт боту https-адрес на 443 порту (Точка шлёт вебхуки только туда).
+  caddy:
+    image: caddy:2
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - bot
+
+volumes:
+  caddy_data:
